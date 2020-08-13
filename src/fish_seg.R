@@ -217,6 +217,7 @@ for ( i in i:50000 ) {
   k = sample( which( isTrain ), 1 )
   img = antsImageRead( imageFNS[k] )
   seg = antsImageRead( labelFNS[k], dimension = 2 ) %>% remapSegmentation()
+  print( paste("Train On:", k,  imageFNS[k] ) )
   gg = generateData( img, seg, batch_size = 16, subSampling = mySubSam, mySdAff=0.15 )
   tracking <- unet %>% fit( gg[[1]], gg[[2]], verbose = 0, epochs=nEpch )
   trainingDataFrame[i,"TrainLoss"] = head( tracking[2]$metrics$loss , 1 )
