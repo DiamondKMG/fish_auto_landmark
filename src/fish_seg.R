@@ -211,8 +211,12 @@ for ( i in i:50000 ) {
     nEpch = 4
   }
   if ( i >= 200 ) {
-    mySubSam = sample( c( 8, 4 ), 1 )
+    mySubSam = 8
     nEpch = 2
+    }
+  if ( i >= 10000 ) {
+    mySubSam = sample( c( 8, 4 ), 1 )
+    nEpch = 1
     }
   k = sample( which( isTrain ), 1 )
   img = antsImageRead( imageFNS[k] )
