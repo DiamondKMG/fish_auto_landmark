@@ -228,7 +228,7 @@ for ( i in i:50000 ) {
       img = antsImageRead( imageFNS[kk] )
       seg = antsImageRead( labelFNS[kk], dimension = 2 )  %>% remapSegmentation()
       gg = generateData( img, seg, subSampling = mySubSam, batch_size = 2, mySdAff = 0.01  )
-      pp = predict( unet, gg[[1]] )
+      pp = predict( unet, tf$cast( gg[[1]], "float32" ) )
       refimg = as.antsImage( gg[[1]][1,,,1] )
       dd = decodeUnet( pp, refimg )
       segvec = imageListToMatrix( dd[[1]], refimg * 0 + 1 )
@@ -259,7 +259,7 @@ for ( i in i:50000 ) {
         save_model_hdf5( unet, unetfn )
         }
       }
-    trainingDataFrame[i,"TestDice"] = lom$MeanOverlap[1]
+    trainingDataFrame[i,"TestDice"] = mean( testOverlaps, na.rm=T )
     print( paste( "Test", ctTest, ":", trainingDataFrame[i,"TestDice"]  ) )
     if ( ctTest > 10 ) plot( ts( na.omit( trainingDataFrame[,"TestDice"] ) ) )
     }
