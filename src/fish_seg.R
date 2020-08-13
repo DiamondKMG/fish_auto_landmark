@@ -260,7 +260,7 @@ for ( i in i:50000 ) {
       }
     ctTest = sum( !is.na( trainingDataFrame[,"TestDice"] ) )
     if ( ctTest > 5 ) {
-      if ( mean( testOverlaps, na.rm=T ) > min( trainingDataFrame[,"TestDice"], na.rm=T ) ) {
+      if ( mean( testOverlaps, na.rm=T ) > max( trainingDataFrame[,"TestDice"], na.rm=T ) ) {
         save_model_hdf5( unet, unetfn )
         }
       }
