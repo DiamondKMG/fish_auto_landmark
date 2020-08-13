@@ -222,7 +222,7 @@ for ( i in i:50000 ) {
   trainingDataFrame[i,"TrainLoss"] = head( tracking[2]$metrics$loss , 1 )
   if ( i > 10  & (i %% 10 == 0 ) ) {
     plot( ts( trainingDataFrame[,"TrainLoss"] ) )
-    print( paste( "RecentLossMean:", mean( tail( trainingDataFrame[,"TrainLoss"] ) ) ) )
+    print( paste(i, "RecentLossMean:", mean( tail( trainingDataFrame[,"TrainLoss"] ) ) ) )
   }
   checker = 10
   if ( ( i %% checker == 0 ) | i == 1 ) {
