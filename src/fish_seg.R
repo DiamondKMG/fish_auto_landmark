@@ -251,11 +251,12 @@ for ( i in i:50000 ) {
         postmapGT = as.antsImage( gg[[2]][1,,,ii] ) %>% antsCopyImageInfo2( seglow )
         seglow = seglow + postmapGT * ii
         if ( visualize & max( postmap ) > 0.1 ) {
-          plot( refimg, postmap  )
-          plot( refimg, postmapGT )
+#          plot( refimg, postmap  )
+#          plot( refimg, postmapGT )
           }
         }
       if ( visualize ) {
+        layout( matrix( 1:2, nrow = 1, byrow=T ) )
         plot( refimg, usegimg, window.overlay=c(2,max(seglow)) )
         plot( refimg, seglow, window.overlay=c(2,max(seglow)) )
         }
