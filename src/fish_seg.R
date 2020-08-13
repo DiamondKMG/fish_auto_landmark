@@ -2,6 +2,8 @@ library( ANTsRNet )
 library( ANTsR )
 library( patchMatchR )
 library( tensorflow )
+message("DISABLING eager execution- WARNING!")
+tf$compat$v1$disable_eager_execution()
 library( keras )
 library( tfdatasets )
 library( reticulate )
@@ -166,6 +168,7 @@ isTrain[ sample( 1:length( labelFNS ), 10 )  ] = FALSE
 ################################################################################
 cce = tf$keras$losses$CategoricalCrossentropy()
 mse = tf$keras$losses$MeanSquaredError()
+mae = tf$keras$losses$MeanAbsoluteError()
 ccef = categorical_focal_loss_fixed
 unet = createUnetModel2D( list( NULL, NULL, 3 ),
   mode='classification', numberOfOutputs = length( ulabs ), numberOfLayers=4 )
@@ -175,26 +178,54 @@ unet = createUnetModel2D( list( NULL, NULL, 3 ),
 # 3. train with weighted cce  (optional)
 # 4. train with dice (optional)
 unetfn = "fish_seg.h5"
-# if ( file.exists( unetfn ) )
-#  unet = load_model_hdf5( unetfn, compile=FALSE  )
-unet %>% compile(  loss = categorical_focal_loss_fixed,
-  optimizer = optimizer_adam( lr = 1e-4  )  )
+if ( file.exists( unetfn ) )
+  unet = load_model_hdf5( unetfn, compile=FALSE  )
 if ( ! exists( "visualize" ) ) visualize = FALSE
 testLoss = c( )
 ctTest = 1
-for ( i in 1:50000 ) {
+i = 1
+message("should implement exponential averaging to prevent subject-specific over-fitting")
+for ( i in i:50000 ) {
+  if ( i == 1 ) {
+    unet %>% compile(  loss = mae,
+      optimizer = optimizer_adam( lr = 1e-5  )  )
+    }
+  if ( i == 10 ) {
+    unet %>% compile(  loss = ccef,
+      optimizer = optimizer_adam( lr = 1e-4  )  )
+    }
+  if ( i == 400 & FALSE ) { # FIXME - need to estimate weights empirically
+#    unet %>% compile(  loss = weighted cce,
+#      optimizer = optimizer_adam( lr = 1e-4  )  )
+    }
+  if ( i < 100 ) {
+    mySubSam = 12
+    nEpch = 10
+  }
+  if ( i >= 100 ) {
+    mySubSam = sample( c( 12, 8 ), 1 )
+    nEpch = 4
+  }
+  if ( i >= 200 ) {
+    mySubSam = sample( c( 8, 4 ), 1 )
+    nEpch = 2
+    }
   k = sample( which( isTrain ), 1 )
   img = antsImageRead( imageFNS[k] )
   seg = antsImageRead( labelFNS[k], dimension = 2 ) %>% remapSegmentation()
-  gg = generateData( img, seg, subSampling = sample( c(8,4),1 ) )
-  unet %>% fit( gg[[1]], gg[[2]], verbose=1, epochs=2 )
-  if ( ( i %% 10 == 0 ) | i == 1 ) {
+  gg = generateData( img, seg, batch_size = 16, subSampling = mySubSam, mySdAff=0.15 )
+  unet %>% fit( gg[[1]], gg[[2]], verbose = i < 100, epochs=nEpch )
+  if ( i < 100 ) checker = 10
+  if ( i >= 100 & i < 200 ) checker = 40
+  if ( i > 200 ) checker = 100
+  if ( ( i %% checker == 0 ) | i == 1 ) {
     testOverlaps = rep( NA, length( which( !isTrain ) ) )
     ct = 1
     for ( kk in which( !isTrain ) ) {
+      mySubSam = 8
       img = antsImageRead( imageFNS[kk] )
       seg = antsImageRead( labelFNS[kk], dimension = 2 )  %>% remapSegmentation()
-      gg = generateData( img, seg, subSampling = 4, batch_size = 2, mySdAff = 0.01  )
+      gg = generateData( img, seg, subSampling = mySubSam, batch_size = 2, mySdAff = 0.01  )
       pp = predict( unet, gg[[1]] )
       refimg = as.antsImage( gg[[1]][1,,,1] )
       dd = decodeUnet( pp, refimg )
@@ -220,12 +251,13 @@ for ( i in 1:50000 ) {
       testOverlaps[ ct ] = mean( lom$MeanOverlap )
       ct = ct + 1
       }
-    }
-    if ( mean( testOverlaps ) < min( testLoss ) ) {
+    if ( mean( testOverlaps, na.rm=T ) > min( testLoss, na.rm=T ) ) {
       save_model_hdf5( unet, unetfn )
       }
-    testLoss[ctTest] = mean( testOverlaps )
-    print( testLoss[testLoss] )
+    testLoss[ctTest] = mean( testOverlaps, na.rm=T )
+    print( paste( "Test", ctTest, ":", testLoss[ctTest]  ) )
+    if ( ctTest > 10 ) plot( ts( testLoss ) )
     ctTest = ctTest + 1
+    }
   }
 }
