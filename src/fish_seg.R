@@ -2,8 +2,8 @@ library( ANTsRNet )
 library( ANTsR )
 library( patchMatchR )
 library( tensorflow )
-message("DISABLING eager execution- WARNING!")
-tf$compat$v1$disable_eager_execution()
+# message("DISABLING eager execution- WARNING!")
+# tf$compat$v1$disable_eager_execution()
 library( keras )
 library( tfdatasets )
 library( reticulate )
@@ -138,7 +138,7 @@ toLuminance <- function( x ) {
   }
 
 ######## here, we find the unique labels #########
-ulabs = c( 0,  unique( labelIDs$JoinWith ) )
+ulabs = sort( unique( c( 0,  labelIDs$JoinWith ) ) )
 if ( ! exists( "ulabs" ) ) {
   fns=Sys.glob("labelmaps/*")
   ulabs=sort(unique(antsImageRead( fns[1] )))
@@ -178,26 +178,28 @@ unet = createUnetModel2D( list( NULL, NULL, 3 ),
 # 3. train with weighted cce  (optional)
 # 4. train with dice (optional)
 unetfn = "fish_seg.h5"
-if ( file.exists( unetfn ) )
+csvfn = gsub( unetfn, "h5", "csv" )
+if ( file.exists( unetfn ) ) {
   unet = load_model_hdf5( unetfn, compile=FALSE  )
+  trainingDataFrame = read.csv( csvfn )
+} else {
+  trainingDataFrame = data.frame(
+    TrainLoss = NA,
+    TestDice  = NA
+  )
+}
 if ( ! exists( "visualize" ) ) visualize = FALSE
-testLoss = c( )
-ctTest = 1
-i = 1
+i = nrow( trainingDataFrame )
 message("should implement exponential averaging to prevent subject-specific over-fitting")
 for ( i in i:50000 ) {
+  trainingDataFrame[i,]=NA
   if ( i == 1 ) {
-    unet %>% compile(  loss = mae,
-      optimizer = optimizer_adam( lr = 1e-5  )  )
-    }
-  if ( i == 10 ) {
     unet %>% compile(  loss = ccef,
       optimizer = optimizer_adam( lr = 1e-4  )  )
     }
-  if ( i == 400 & FALSE ) { # FIXME - need to estimate weights empirically
+    # FIXME - need to estimate weights empirically
 #    unet %>% compile(  loss = weighted cce,
 #      optimizer = optimizer_adam( lr = 1e-4  )  )
-    }
   if ( i < 100 ) {
     mySubSam = 12
     nEpch = 10
@@ -214,10 +216,10 @@ for ( i in i:50000 ) {
   img = antsImageRead( imageFNS[k] )
   seg = antsImageRead( labelFNS[k], dimension = 2 ) %>% remapSegmentation()
   gg = generateData( img, seg, batch_size = 16, subSampling = mySubSam, mySdAff=0.15 )
-  unet %>% fit( gg[[1]], gg[[2]], verbose = i < 100, epochs=nEpch )
-  if ( i < 100 ) checker = 10
-  if ( i >= 100 & i < 200 ) checker = 40
-  if ( i > 200 ) checker = 100
+  tracking <- unet %>% fit( gg[[1]], gg[[2]], verbose = i < 100, epochs=nEpch )
+  trainingDataFrame[i,"TrainLoss"] = head( tracking[2]$metrics$loss , 1 )
+  if ( i > 10  & (i %% 10 == 0 )) plot( ts( trainingDataFrame[,"TrainLoss"] ) )
+  checker = 10
   if ( ( i %% checker == 0 ) | i == 1 ) {
     testOverlaps = rep( NA, length( which( !isTrain ) ) )
     ct = 1
@@ -237,27 +239,29 @@ for ( i in i:50000 ) {
       for ( ii in 1:length(ulabs) ) {
         postmap = as.antsImage( pp[1,,,ii] ) %>% antsCopyImageInfo2( seglow )
         postmapGT = as.antsImage( gg[[2]][1,,,ii] ) %>% antsCopyImageInfo2( seglow )
-        seglow = seglow + postmapGT * (ii+1)
-        if ( visualize ) {
+        seglow = seglow + postmapGT * ii
+        if ( visualize & max( postmap ) > 0.1 ) {
           plot( refimg, postmap  )
           plot( refimg, postmapGT )
           }
         }
       if ( visualize ) {
-        plot( refimg, usegimg )
-        plot( refimg, seglow )
+        plot( refimg, usegimg, window.overlay=c(2,max(seglow)) )
+        plot( refimg, seglow, window.overlay=c(2,max(seglow)) )
         }
       lom = labelOverlapMeasures( seglow, usegimg )
-      testOverlaps[ ct ] = mean( lom$MeanOverlap )
+      testOverlaps[ ct ] = mean( lom$MeanOverlap[-1] )
       ct = ct + 1
       }
-    if ( mean( testOverlaps, na.rm=T ) > min( testLoss, na.rm=T ) ) {
-      save_model_hdf5( unet, unetfn )
+    ctTest = sum( !is.na( trainingDataFrame[i,"TestDice"] ) )
+    if ( ctTest > 5 ) {
+      if ( mean( testOverlaps, na.rm=T ) > min( trainingDataFrame[,"TestDice"], na.rm=T ) ) {
+        save_model_hdf5( unet, unetfn )
+        }
       }
-    testLoss[ctTest] = mean( testOverlaps, na.rm=T )
-    print( paste( "Test", ctTest, ":", testLoss[ctTest]  ) )
-    if ( ctTest > 10 ) plot( ts( testLoss ) )
-    ctTest = ctTest + 1
+    trainingDataFrame[i,"TestDice"] = lom$MeanOverlap[1]
+    print( paste( "Test", ctTest, ":", trainingDataFrame[i,"TestDice"]  ) )
+    if ( ctTest > 10 ) plot( ts( na.omit( trainingDataFrame[,"TestDice"] ) ) )
     }
+  write.csv( trainingDataFrame, csvfn, row.names = FALSE )
   }
-}
