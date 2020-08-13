@@ -195,15 +195,13 @@ message("should consider defining sample weights in order to counter potential i
 message("in the representation of different appearance/types (related to species/genus stuff)")
 message("but need more biological knowledge to decide this.")
 message("should consider whether weighted CCE is needed.")
-for ( i in i:50000 ) {
-  trainingDataFrame[i,]=NA
-  if ( i == 1 ) {
-    unet %>% compile(  loss = ccef,
-      optimizer = optimizer_adam( lr = 1e-4  )  )
-    }
-    # FIXME - need to estimate weights empirically
+unet %>% compile(  loss = ccef,
+  optimizer = optimizer_adam( lr = 1e-4  )  )
+# FIXME - need to estimate weights empirically
 #    unet %>% compile(  loss = weighted cce,
 #      optimizer = optimizer_adam( lr = 1e-4  )  )
+for ( i in i:50000 ) {
+  trainingDataFrame[i,]=NA
   if ( i < 100 ) {
     mySubSam = 12
     nEpch = 10
