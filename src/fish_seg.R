@@ -177,8 +177,8 @@ unet = createUnetModel2D( list( NULL, NULL, 3 ),
 # 2. train with ccef
 # 3. train with weighted cce  (optional)
 # 4. train with dice (optional)
-unetfn = "fish_seg.h5"
-csvfn = gsub( unetfn, "h5", "csv" )
+unetfn = "models/fish_seg.h5"
+csvfn = gsub(  "h5", "csv" , unetfn )
 if ( file.exists( unetfn ) ) {
   unet = load_model_hdf5( unetfn, compile=FALSE  )
   trainingDataFrame = read.csv( csvfn )
@@ -191,6 +191,10 @@ if ( file.exists( unetfn ) ) {
 if ( ! exists( "visualize" ) ) visualize = FALSE
 i = nrow( trainingDataFrame )
 message("should implement exponential averaging to prevent subject-specific over-fitting")
+message("should consider defining sample weights in order to counter potential imbalance")
+message("in the representation of different appearance/types (related to species/genus stuff)")
+message("but need more biological knowledge to decide this.")
+message("should consider whether weighted CCE is needed.")
 for ( i in i:50000 ) {
   trainingDataFrame[i,]=NA
   if ( i == 1 ) {
@@ -216,9 +220,12 @@ for ( i in i:50000 ) {
   img = antsImageRead( imageFNS[k] )
   seg = antsImageRead( labelFNS[k], dimension = 2 ) %>% remapSegmentation()
   gg = generateData( img, seg, batch_size = 16, subSampling = mySubSam, mySdAff=0.15 )
-  tracking <- unet %>% fit( gg[[1]], gg[[2]], verbose = i < 100, epochs=nEpch )
+  tracking <- unet %>% fit( gg[[1]], gg[[2]], verbose = 0, epochs=nEpch )
   trainingDataFrame[i,"TrainLoss"] = head( tracking[2]$metrics$loss , 1 )
-  if ( i > 10  & (i %% 10 == 0 )) plot( ts( trainingDataFrame[,"TrainLoss"] ) )
+  if ( i > 10  & (i %% 10 == 0 ) ) {
+    plot( ts( trainingDataFrame[,"TrainLoss"] ) )
+    print( paste( "RecentLossMean:", mean( tail( trainingDataFrame[,"TrainLoss"] ) ) ) )
+  }
   checker = 10
   if ( ( i %% checker == 0 ) | i == 1 ) {
     testOverlaps = rep( NA, length( which( !isTrain ) ) )
@@ -253,7 +260,7 @@ for ( i in i:50000 ) {
       testOverlaps[ ct ] = mean( lom$MeanOverlap[-1] )
       ct = ct + 1
       }
-    ctTest = sum( !is.na( trainingDataFrame[i,"TestDice"] ) )
+    ctTest = sum( !is.na( trainingDataFrame[,"TestDice"] ) )
     if ( ctTest > 5 ) {
       if ( mean( testOverlaps, na.rm=T ) > min( trainingDataFrame[,"TestDice"], na.rm=T ) ) {
         save_model_hdf5( unet, unetfn )
