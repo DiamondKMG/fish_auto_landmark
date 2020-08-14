@@ -101,7 +101,7 @@ generateData <- function( imgIn, segger,
   doReflect = rnorm( 1 ) < 0
   reflectMat = '/tmp/reflect.mat'
   for ( k in 1:nChannels ) {
-    temp[[k]] = iMath(temp[[k]], "PadImage",32) %>% ANTsRNet::padImageByFactor(8)
+    temp[[k]] = iMath(temp[[k]], "PadImage", 64 ) %>% ANTsRNet::padImageByFactor( 8 )
     if ( k == 1 ) myreflection = reflectionMatrix( temp[[k]], 0, reflectMat )
     if ( doReflect ) temp[[k]] = antsApplyTransforms( temp[[k]], temp[[k]], reflectMat )
     }
@@ -254,7 +254,7 @@ for ( i in i:50000 ) {
       mySubSam = 8
       img = antsImageRead( imageFNS[kk] )
       seg = antsImageRead( labelFNS[kk], dimension = 2 )  %>% remapSegmentation()
-      gg = generateData( img, seg, subSampling = mySubSam, batch_size = 2, mySdAff = 0.01  )
+      gg = generateData( img, seg, subSampling = mySubSam, batch_size = 1, mySdAff = 0.0  )
       pp = predict( unet, tf$cast( gg[[1]], "float32" ) )
       refimg = as.antsImage( gg[[1]][1,,,1] )
       dd = decodeUnet( pp, refimg )
