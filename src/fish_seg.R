@@ -171,9 +171,9 @@ cce = tf$keras$losses$CategoricalCrossentropy()
 mse = tf$keras$losses$MeanSquaredError()
 mae = tf$keras$losses$MeanAbsoluteError()
 ccef = categorical_focal_loss_fixed
-weightsTensor <- K$variable(
-  c( 0.2, 0.2, 0.25, 0.25,
-    0.5, 0.5, 0.3, 0.35, 0.22 ) )
+mywts = c( 0.2, 0.2, 0.25, 0.25,
+  0.5, 0.5, 0.3, 0.35, 0.22 )
+weightsTensor <- K$variable( mywts/sum(mywts) )
 weighted_categorical_crossentropy_fixed <- function( y_true, y_pred )
    {
    y_pred <- y_pred / K$sum( y_pred, axis = -1L, keepdims = TRUE )
