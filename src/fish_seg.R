@@ -7,6 +7,7 @@ library( tensorflow )
 library( keras )
 library( tfdatasets )
 library( reticulate )
+K <- keras::backend()
 set.seed( 0 )
 #####################
 np <- import("numpy")
@@ -170,6 +171,18 @@ cce = tf$keras$losses$CategoricalCrossentropy()
 mse = tf$keras$losses$MeanSquaredError()
 mae = tf$keras$losses$MeanAbsoluteError()
 ccef = categorical_focal_loss_fixed
+weightsTensor <- K$variable(
+  c( 0.2, 0.2, 0.25, 0.25,
+    0.5, 0.5, 0.3, 0.35, 0.22 ) )
+weighted_categorical_crossentropy_fixed <- function( y_true, y_pred )
+   {
+   y_pred <- y_pred / K$sum( y_pred, axis = -1L, keepdims = TRUE )
+   y_pred <- K$clip( y_pred, K$epsilon(), 1.0 - K$epsilon() )
+   loss <- y_true * K$log( y_pred ) * weightsTensor
+   loss <- -K$sum( loss, axis = -1L )
+   return( loss )
+   }
+ccew = weighted_categorical_crossentropy_fixed
 unet = createUnetModel2D( list( NULL, NULL, 3 ),
   mode='classification', numberOfOutputs = length( ulabs ), numberOfLayers=4 )
 # training system is:
@@ -197,6 +210,10 @@ message("but need more biological knowledge to decide this.")
 message("should consider whether weighted CCE is needed.")
 unet %>% compile(  loss = ccef,
   optimizer = optimizer_adam( lr = 1e-4  )  )
+if ( i > 4000 ) {
+  unet %>% compile(  loss = ccew,
+    optimizer = optimizer_adam( lr = 1e-4  )  )
+  }
 # FIXME - need to estimate weights empirically
 #    unet %>% compile(  loss = weighted cce,
 #      optimizer = optimizer_adam( lr = 1e-4  )  )
@@ -257,8 +274,8 @@ for ( i in i:50000 ) {
         }
       if ( visualize ) {
         layout( matrix( 1:2, nrow = 1, byrow=T ) )
-        plot( refimg, usegimg, window.overlay=c(2,max(seglow)) )
-        plot( refimg, seglow, window.overlay=c(2,max(seglow)) )
+        plot( refimg, usegimg, window.overlay=c(2,max(seglow)), alpha=0.5 )
+        plot( refimg, seglow, window.overlay=c(2,max(seglow)), alpha=0.5 )
         }
       lom = labelOverlapMeasures( seglow, usegimg )
       testOverlaps[ ct ] = mean( lom$MeanOverlap[-1] )
