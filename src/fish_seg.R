@@ -170,6 +170,7 @@ isTrain[ sample( 1:length( labelFNS ), 10 )  ] = FALSE
 cce = tf$keras$losses$CategoricalCrossentropy()
 mse = tf$keras$losses$MeanSquaredError()
 mae = tf$keras$losses$MeanAbsoluteError()
+dicer = multilabel_dice_coefficient
 ccef = categorical_focal_loss_fixed
 mywts = c( 0.2, 0.2, 0.25, 0.25,
   0.5, 0.5, 0.3, 0.35, 0.22 )
@@ -214,6 +215,10 @@ if ( i > 4000 ) {
   unet %>% compile(  loss = ccew,
     optimizer = optimizer_adam( lr = 1e-4  )  )
   }
+# if ( i > 4000 ) {
+#  unet %>% compile(  loss = dicer,
+#      optimizer = optimizer_adam( lr = 1e-4  )  )
+#  }
 # FIXME - need to estimate weights empirically
 #    unet %>% compile(  loss = weighted cce,
 #      optimizer = optimizer_adam( lr = 1e-4  )  )
