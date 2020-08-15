@@ -232,7 +232,7 @@ for ( i in i:50000 ) {
     nEpch = 2
     }
   if ( i >= 10000 ) {
-    mySubSam = sample( c( 8, 4 ), 1 )
+    mySubSam = sample( c( 12, 8, 6 ), 1 )
     nEpch = 1
     }
   k = sample( which( isTrain ), 1 )
