@@ -10,5 +10,6 @@ to view training progress:
 
 ```
 plot( ts( na.omit( read.csv("models/fish_seg.csv" ) )[,2]))
+max(  na.omit( read.csv("models/fish_seg.csv" ) )[,2])
 ```
 
