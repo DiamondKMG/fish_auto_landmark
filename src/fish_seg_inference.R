@@ -145,7 +145,6 @@ if ( ! exists( "ulabs" ) ) {
 imageFNS = Sys.glob( "images/*jpg" )
 labelFNS = Sys.glob( "labelmaps/*nrrd" )
 pointFNS = Sys.glob( "fcsv/*fcsv" )
-nPoints = nrow( pts )
 isTrain = rep( TRUE, length(  labelFNS  ) )
 isTrain[ sample( 1:length( labelFNS ), 10 )  ] = FALSE
 unetfn = "models/fish_seg.h5"
