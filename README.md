@@ -13,3 +13,7 @@ plot( ts( na.omit( read.csv("models/fish_seg.csv" ) )[,2]))
 max(  na.omit( read.csv("models/fish_seg.csv" ) )[,2])
 ```
 
+If you want to run this example via docker, follow:
+
+https://stackoverflow.com/questions/32269810/understanding-docker-v-command
+
